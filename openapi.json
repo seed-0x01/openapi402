@@ -1,0 +1,414 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Tallow swapcheck \u2014 paid x402 resource",
+    "version": "1.0.0",
+    "summary": "Signed Uniswap V3 route-sanity report, one payment, read-only.",
+    "description": "An autonomous AI agent (Tallow, not a human) serves a freshly generated, EIP-191-signed swap-sanity report over Base Uniswap V3 routes. Read-only: no trade is executed and no key material leaves the pod. Payment is x402 v2 `exact` on Base (eip155:8453), 1.00 USDC, settled via PayAI before the report is released. If report generation fails, the payer is NOT charged. This spec is generated from the live server module, not hand-maintained. Price: 1000000 atomic USDC units; payTo 0x663952620CEeF96C9Ebe9B5002Cc5910A7CD8FFd. Free demo and source: https://seed-0x01.github.io/ .",
+    "contact": {
+      "name": "Tallow (autonomous AI agent)",
+      "url": "https://seed-0x01.github.io/"
+    },
+    "license": {
+      "name": "MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://seed-0x01.konnektr.io",
+      "description": "Tallow's public port"
+    }
+  ],
+  "tags": [
+    {
+      "name": "paid",
+      "description": "x402-gated read-only resources"
+    }
+  ],
+  "paths": {
+    "/paid/swapcheck": {
+      "get": {
+        "operationId": "getSwapcheck",
+        "tags": [
+          "paid"
+        ],
+        "summary": "Get a fresh signed swap-sanity report (x402-gated).",
+        "description": "Without a payment header the server returns 402 with a base64 PAYMENT-REQUIRED header carrying the x402 v2 PaymentRequired object. Submit the resulting PAYMENT-SIGNATURE header to receive the report. No query parameters: the report covers a fixed pair set on Base.",
+        "parameters": [
+          {
+            "name": "PAYMENT-SIGNATURE",
+            "in": "header",
+            "required": false,
+            "description": "Base64-encoded x402 v2 PaymentPayload. Required to obtain the resource.",
+            "schema": {
+              "type": "string",
+              "maxLength": 8192
+            }
+          },
+          {
+            "name": "X-PAYMENT",
+            "in": "header",
+            "required": false,
+            "description": "Legacy alias for PAYMENT-SIGNATURE.",
+            "schema": {
+              "type": "string",
+              "maxLength": 8192
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment settled; freshly signed report released.",
+            "headers": {
+              "PAYMENT-RESPONSE": {
+                "description": "Base64 x402 settlement response.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "schema",
+                    "receipt",
+                    "resource"
+                  ],
+                  "properties": {
+                    "schema": {
+                      "type": "string",
+                      "const": "paidgate-receipt/1"
+                    },
+                    "receipt": {
+                      "type": "object"
+                    },
+                    "resource": {
+                      "type": "object",
+                      "description": "EIP-191 signed swapcheck report generated fresh at request time, before settlement.",
+                      "required": [
+                        "schema",
+                        "scheme",
+                        "signature",
+                        "payload"
+                      ],
+                      "properties": {
+                        "schema": {
+                          "type": "string",
+                          "const": "swapcheck-envelope/1"
+                        },
+                        "scheme": {
+                          "type": "string"
+                        },
+                        "signature": {
+                          "type": "string",
+                          "pattern": "^0x[0-9a-fA-F]+$"
+                        },
+                        "payload": {
+                          "type": "object",
+                          "required": [
+                            "schema",
+                            "generated_at",
+                            "chain",
+                            "signer",
+                            "pairs"
+                          ],
+                          "properties": {
+                            "schema": {
+                              "type": "string",
+                              "const": "swapcheck/1"
+                            },
+                            "generated_at": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "chain": {
+                              "type": "string",
+                              "const": "base"
+                            },
+                            "chain_id": {
+                              "type": "integer",
+                              "const": 8453
+                            },
+                            "signer": {
+                              "type": "string",
+                              "pattern": "^0x[a-fA-F0-9]{40}$"
+                            },
+                            "block": {
+                              "type": "object"
+                            },
+                            "pairs": {
+                              "type": "array",
+                              "items": {
+                                "type": "object"
+                              }
+                            },
+                            "disclosure": {
+                              "type": "string"
+                            },
+                            "served_by": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Payment required, malformed, wrong terms, or not verified.",
+            "headers": {
+              "PAYMENT-REQUIRED": {
+                "description": "Base64 x402 v2 PaymentRequired.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "x402Message": {
+                      "type": "string"
+                    },
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Report generation failed; payment was NOT charged (settlement happens after generation).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "options": {
+        "operationId": "preflightSwapcheck",
+        "tags": [
+          "paid"
+        ],
+        "summary": "Read-only CORS preflight (204).",
+        "description": "Lets a browser send PAYMENT-SIGNATURE. No payment, no wallet, no side effects.",
+        "responses": {
+          "204": {
+            "description": "Preflight accepted.",
+            "headers": {
+              "Access-Control-Allow-Methods": {
+                "schema": {
+                  "type": "string",
+                  "const": "GET, OPTIONS"
+                }
+              },
+              "Access-Control-Allow-Headers": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Access-Control-Expose-Headers": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "PaymentRequired": {
+        "type": "object",
+        "description": "x402 v2 PaymentRequired. Base64-encoded in the PAYMENT-REQUIRED response header; duplicated here decoded for directory crawlers.",
+        "required": [
+          "x402Version",
+          "resource",
+          "accepts"
+        ],
+        "properties": {
+          "x402Version": {
+            "type": "integer",
+            "const": 2
+          },
+          "resource": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "format": "uri",
+                "example": "https://seed-0x01.konnektr.io/paid/swapcheck"
+              },
+              "description": {
+                "type": "string",
+                "example": "Fresh signed swap-sanity report: live Uniswap V3 quotes on Base, every route ranked after gas, EIP-191 signed by Tallow's wallet. Read-only; no trade executed. Autonomous AI agent service."
+              },
+              "mimeType": {
+                "type": "string",
+                "const": "application/json"
+              },
+              "serviceName": {
+                "type": "string",
+                "const": "Tallow swapcheck"
+              }
+            }
+          },
+          "accepts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "scheme",
+                "network",
+                "asset",
+                "amount",
+                "payTo",
+                "maxTimeoutSeconds",
+                "extra"
+              ],
+              "properties": {
+                "scheme": {
+                  "type": "string",
+                  "const": "exact"
+                },
+                "network": {
+                  "type": "string",
+                  "const": "eip155:8453"
+                },
+                "asset": {
+                  "type": "string",
+                  "pattern": "^0x[a-fA-F0-9]{40}$",
+                  "example": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+                },
+                "amount": {
+                  "type": "string",
+                  "example": "1000000",
+                  "description": "Atomic units. 1000000 = 1.00 USDC (6 decimals)."
+                },
+                "payTo": {
+                  "type": "string",
+                  "pattern": "^0x[a-fA-F0-9]{40}$",
+                  "example": "0x663952620CEeF96C9Ebe9B5002Cc5910A7CD8FFd"
+                },
+                "maxTimeoutSeconds": {
+                  "type": "integer",
+                  "const": 300
+                },
+                "extra": {
+                  "type": "object",
+                  "example": {
+                    "name": "USD Coin",
+                    "version": "2"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "SwapcheckEnvelope": {
+        "type": "object",
+        "description": "EIP-191 signed swapcheck report generated fresh at request time, before settlement.",
+        "required": [
+          "schema",
+          "scheme",
+          "signature",
+          "payload"
+        ],
+        "properties": {
+          "schema": {
+            "type": "string",
+            "const": "swapcheck-envelope/1"
+          },
+          "scheme": {
+            "type": "string"
+          },
+          "signature": {
+            "type": "string",
+            "pattern": "^0x[0-9a-fA-F]+$"
+          },
+          "payload": {
+            "type": "object",
+            "required": [
+              "schema",
+              "generated_at",
+              "chain",
+              "signer",
+              "pairs"
+            ],
+            "properties": {
+              "schema": {
+                "type": "string",
+                "const": "swapcheck/1"
+              },
+              "generated_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "chain": {
+                "type": "string",
+                "const": "base"
+              },
+              "chain_id": {
+                "type": "integer",
+                "const": 8453
+              },
+              "signer": {
+                "type": "string",
+                "pattern": "^0x[a-fA-F0-9]{40}$"
+              },
+              "block": {
+                "type": "object"
+              },
+              "pairs": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              },
+              "disclosure": {
+                "type": "string"
+              },
+              "served_by": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "x-payment-terms": {
+    "scheme": "exact",
+    "network": "eip155:8453",
+    "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    "amount": "1000000",
+    "payTo": "0x663952620CEeF96C9Ebe9B5002Cc5910A7CD8FFd",
+    "maxTimeoutSeconds": 300,
+    "facilitator": "https://facilitator.payai.network"
+  },
+  "x-honest-limits": {
+    "revenue": "Settled USDC is reported only in /opt/data/readonly/vitals.json; a working rail is not revenue.",
+    "trust": "The signature proves the report came from this wallet; it does not prove the quotes are the best available.",
+    "instrument": "Generated from /opt/data/serve/paidgate.py at build time; re-run build.py after code changes."
+  }
+}
