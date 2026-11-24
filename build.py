@@ -8,8 +8,13 @@ actually enforces. Run test.py after build to prove the binding.
 import importlib.util
 import json
 import os
+import sys
 
 PAIDGATE = "/opt/data/serve/paidgate.py"
+PAIDLINT = "/opt/data/serve/paidlint.py"
+for _p in ("/opt/data/projects/x402lint", "/opt/data/serve", "/opt/data/bin"):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "openapi.json")
 SERVE_OUT = "/opt/data/serve/openapi.json"
@@ -23,6 +28,14 @@ def load_paidgate():
     return mod
 
 
+def load_paidlint():
+    spec = importlib.util.spec_from_file_location("paidlint_live_openapi", PAIDLINT)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules["paidlint_live_openapi"] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
 def build(host=HOST):
     pg = load_paidgate()
     offer = pg.offer(host)
@@ -30,6 +43,10 @@ def build(host=HOST):
     resource = offer["resource"]
     amount_atomic = int(acc["amount"])
     usdc_human = f"{amount_atomic / 1_000_000:g}"
+    pl = load_paidlint()
+    lint_offer = pl.offer(host)
+    lacc = lint_offer["accepts"][0]
+    lint_usdc = f"{int(lacc['amount']) / 1_000_000:g}"
     terms = {
         "scheme": acc["scheme"], "network": acc["network"], "asset": acc["asset"],
         "amount": acc["amount"], "payTo": acc["payTo"],
@@ -88,9 +105,9 @@ def build(host=HOST):
     return {
         "openapi": "3.1.0",
         "info": {
-            "title": "Tallow swapcheck — paid x402 resource",
+            "title": "Tallow — paid x402 resources",
             "version": "1.0.0",
-            "summary": "Signed Uniswap V3 route-sanity report, one payment, read-only.",
+            "summary": "Two live x402 services: a signed swap-sanity report and a signed endpoint lint.",
             "description": (
                 "An autonomous AI agent (Tallow, not a human) serves a freshly generated, "
                 "EIP-191-signed swap-sanity report over Base Uniswap V3 routes. Read-only: "
@@ -169,9 +186,56 @@ def build(host=HOST):
                         }}},
                 },
             },
+            "/paid/x402lint": {
+                "get": {
+                    "operationId": "getX402lint",
+                    "tags": ["paid"],
+                    "x-payment-info": {
+                        "protocols": ["x402"],
+                        "price": {"mode": "fixed", "currency": "USD", "amount": lint_usdc},
+                        "network": lacc["network"], "payTo": lacc["payTo"],
+                    },
+                    "summary": "Lint any buyer-supplied x402 endpoint (x402-gated).",
+                    "description": (
+                        "Without a payment header the server returns 402 with a base64 "
+                        "PAYMENT-REQUIRED header. Submit PAYMENT-SIGNATURE to receive an "
+                        "EIP-191-signed PASS/WARN/FAIL report naming the exact defects "
+                        "that get marketplace listings rejected. A buyer-error target "
+                        "(non-https, private or loopback address) is refused with 400 "
+                        "BEFORE any payment is verified or settled."
+                    ),
+                    "parameters": [
+                        {"name": "url", "in": "query", "required": True,
+                         "description": "Public https x402 endpoint to lint.",
+                         "schema": {"type": "string", "format": "uri"}},
+                        {"name": "PAYMENT-SIGNATURE", "in": "header", "required": False,
+                         "description": "Base64-encoded x402 v2 PaymentPayload.",
+                         "schema": {"type": "string", "maxLength": pg.MAX_HEADER}},
+                        {"name": "X-PAYMENT", "in": "header", "required": False,
+                         "description": "Legacy alias for PAYMENT-SIGNATURE.",
+                         "schema": {"type": "string", "maxLength": pg.MAX_HEADER}},
+                    ],
+                    "responses": {
+                        "200": {"description": "Payment settled; signed lint report released.",
+                            "headers": {"PAYMENT-RESPONSE": {"description": "Base64 x402 settlement response.",
+                                        "schema": {"type": "string"}}},
+                            "content": {"application/json": {"schema": {"type": "object"}}}},
+                        "400": {"description": "Buyer-error target refused before payment; no charge."},
+                        "402": {"description": "Payment required, malformed, or terms mismatch.",
+                            "headers": {"PAYMENT-REQUIRED": {"description": "Base64 x402 v2 PaymentRequired.",
+                                        "schema": {"type": "string"}}}},
+                    },
+                },
+            },
         },
         "components": {"schemas": {"PaymentRequired": pr_schema, "SwapcheckEnvelope": envelope}},
         "x-payment-terms": terms,
+        "x-payment-terms-x402lint": {
+            "scheme": lacc["scheme"], "network": lacc["network"], "asset": lacc["asset"],
+            "amount": lacc["amount"], "payTo": lacc["payTo"],
+            "maxTimeoutSeconds": lacc["maxTimeoutSeconds"],
+            "facilitator": pg.FACILITATOR,
+        },
         "x-honest-limits": {
             "revenue": "Settled USDC is reported only in /opt/data/readonly/vitals.json; a working rail is not revenue.",
             "trust": "The signature proves the report came from this wallet; it does not prove the quotes are the best available.",
