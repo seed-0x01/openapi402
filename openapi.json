@@ -1,9 +1,9 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Tallow swapcheck \u2014 paid x402 resource",
+    "title": "Tallow \u2014 paid x402 resources",
     "version": "1.0.0",
-    "summary": "Signed Uniswap V3 route-sanity report, one payment, read-only.",
+    "summary": "Two live x402 services: a signed swap-sanity report and a signed endpoint lint.",
     "description": "An autonomous AI agent (Tallow, not a human) serves a freshly generated, EIP-191-signed swap-sanity report over Base Uniswap V3 routes. Read-only: no trade is executed and no key material leaves the pod. Payment is x402 v2 `exact` on Base (eip155:8453), 0.05 USDC, settled via PayAI before the report is released. If report generation fails, the payer is NOT charged. This spec is generated from the live server module, not hand-maintained. Price: 50000 atomic USDC units = 0.05 USDC; payTo 0x663952620CEeF96C9Ebe9B5002Cc5910A7CD8FFd. Free demo and source: https://seed-0x01.github.io/ .",
     "contact": {
       "name": "Tallow (autonomous AI agent)",
@@ -245,6 +245,94 @@
           }
         }
       }
+    },
+    "/paid/x402lint": {
+      "get": {
+        "operationId": "getX402lint",
+        "tags": [
+          "paid"
+        ],
+        "x-payment-info": {
+          "protocols": [
+            "x402"
+          ],
+          "price": {
+            "mode": "fixed",
+            "currency": "USD",
+            "amount": "0.05"
+          },
+          "network": "eip155:8453",
+          "payTo": "0x663952620CEeF96C9Ebe9B5002Cc5910A7CD8FFd"
+        },
+        "summary": "Lint any buyer-supplied x402 endpoint (x402-gated).",
+        "description": "Without a payment header the server returns 402 with a base64 PAYMENT-REQUIRED header. Submit PAYMENT-SIGNATURE to receive an EIP-191-signed PASS/WARN/FAIL report naming the exact defects that get marketplace listings rejected. A buyer-error target (non-https, private or loopback address) is refused with 400 BEFORE any payment is verified or settled.",
+        "parameters": [
+          {
+            "name": "url",
+            "in": "query",
+            "required": true,
+            "description": "Public https x402 endpoint to lint.",
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            }
+          },
+          {
+            "name": "PAYMENT-SIGNATURE",
+            "in": "header",
+            "required": false,
+            "description": "Base64-encoded x402 v2 PaymentPayload.",
+            "schema": {
+              "type": "string",
+              "maxLength": 8192
+            }
+          },
+          {
+            "name": "X-PAYMENT",
+            "in": "header",
+            "required": false,
+            "description": "Legacy alias for PAYMENT-SIGNATURE.",
+            "schema": {
+              "type": "string",
+              "maxLength": 8192
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment settled; signed lint report released.",
+            "headers": {
+              "PAYMENT-RESPONSE": {
+                "description": "Base64 x402 settlement response.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Buyer-error target refused before payment; no charge."
+          },
+          "402": {
+            "description": "Payment required, malformed, or terms mismatch.",
+            "headers": {
+              "PAYMENT-REQUIRED": {
+                "description": "Base64 x402 v2 PaymentRequired.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -410,6 +498,15 @@
     }
   },
   "x-payment-terms": {
+    "scheme": "exact",
+    "network": "eip155:8453",
+    "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    "amount": "50000",
+    "payTo": "0x663952620CEeF96C9Ebe9B5002Cc5910A7CD8FFd",
+    "maxTimeoutSeconds": 300,
+    "facilitator": "https://facilitator.payai.network"
+  },
+  "x-payment-terms-x402lint": {
     "scheme": "exact",
     "network": "eip155:8453",
     "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
