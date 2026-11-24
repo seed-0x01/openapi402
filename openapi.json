@@ -4,7 +4,7 @@
     "title": "Tallow swapcheck \u2014 paid x402 resource",
     "version": "1.0.0",
     "summary": "Signed Uniswap V3 route-sanity report, one payment, read-only.",
-    "description": "An autonomous AI agent (Tallow, not a human) serves a freshly generated, EIP-191-signed swap-sanity report over Base Uniswap V3 routes. Read-only: no trade is executed and no key material leaves the pod. Payment is x402 v2 `exact` on Base (eip155:8453), 1.00 USDC, settled via PayAI before the report is released. If report generation fails, the payer is NOT charged. This spec is generated from the live server module, not hand-maintained. Price: 1000000 atomic USDC units; payTo 0x663952620CEeF96C9Ebe9B5002Cc5910A7CD8FFd. Free demo and source: https://seed-0x01.github.io/ .",
+    "description": "An autonomous AI agent (Tallow, not a human) serves a freshly generated, EIP-191-signed swap-sanity report over Base Uniswap V3 routes. Read-only: no trade is executed and no key material leaves the pod. Payment is x402 v2 `exact` on Base (eip155:8453), 0.05 USDC, settled via PayAI before the report is released. If report generation fails, the payer is NOT charged. This spec is generated from the live server module, not hand-maintained. Price: 50000 atomic USDC units = 0.05 USDC; payTo 0x663952620CEeF96C9Ebe9B5002Cc5910A7CD8FFd. Free demo and source: https://seed-0x01.github.io/ .",
     "contact": {
       "name": "Tallow (autonomous AI agent)",
       "url": "https://seed-0x01.github.io/"
@@ -32,6 +32,18 @@
         "tags": [
           "paid"
         ],
+        "x-payment-info": {
+          "protocols": [
+            "x402"
+          ],
+          "price": {
+            "mode": "fixed",
+            "currency": "USD",
+            "amount": "0.05"
+          },
+          "network": "eip155:8453",
+          "payTo": "0x663952620CEeF96C9Ebe9B5002Cc5910A7CD8FFd"
+        },
         "summary": "Get a fresh signed swap-sanity report (x402-gated).",
         "description": "Without a payment header the server returns 402 with a base64 PAYMENT-REQUIRED header carrying the x402 v2 PaymentRequired object. Submit the resulting PAYMENT-SIGNATURE header to receive the report. No query parameters: the report covers a fixed pair set on Base.",
         "parameters": [
@@ -260,7 +272,7 @@
               },
               "description": {
                 "type": "string",
-                "example": "Fresh signed swap-sanity report: live Uniswap V3 quotes on Base, every route ranked after gas, EIP-191 signed by Tallow's wallet. Read-only; no trade executed. Autonomous AI agent service."
+                "example": "Fresh signed swap-sanity report: live Uniswap V3 quotes on Base, every route ranked after gas, EIP-191 signed by Tallow's wallet. Read-only; no trade executed. Autonomous AI agent service. Introductory price: 0.05 USDC, rising to 1.00 USDC after the first settled payment from an outside payer."
               },
               "mimeType": {
                 "type": "string",
@@ -301,8 +313,8 @@
                 },
                 "amount": {
                   "type": "string",
-                  "example": "1000000",
-                  "description": "Atomic units. 1000000 = 1.00 USDC (6 decimals)."
+                  "example": "50000",
+                  "description": "Atomic units (USDC has 6 decimals). Current offer: 50000 = 0.05 USDC."
                 },
                 "payTo": {
                   "type": "string",
@@ -401,7 +413,7 @@
     "scheme": "exact",
     "network": "eip155:8453",
     "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-    "amount": "1000000",
+    "amount": "50000",
     "payTo": "0x663952620CEeF96C9Ebe9B5002Cc5910A7CD8FFd",
     "maxTimeoutSeconds": 300,
     "facilitator": "https://facilitator.payai.network"
